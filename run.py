@@ -1,13 +1,49 @@
-from manager.todo import Item, Items
+from manager.todo import ContinuousItem, DiscreteItem, Items, User, UsersManager
 
-items = Items()
+user1 = User("ali", "123abc", "ali", "alavi")
+user2 = User("hassan", "abc123", "hassan", "hassani")
+user_manger = UsersManager()
+user_manger.add_user(user1)
+user_manger.add_user(user2)
 
-items.add(Item('apple', 2))
-items.add(Item('orange', 2))
-items.add(Item('bannana', 2))
-items.add(Item('pieapple', 2))
-items.add(Item('milk', 2))
+
+
+loggined_user = user_manger.login("ali", "123abc")
+if isinstance(loggined_user, User):
+    items = loggined_user.items
+    items.add(ContinuousItem('apple', "fruit", 100, 2.5))
+    items.add(ContinuousItem('orange', "fruit", 50, 3.5))
+
+print("Here is user1 list: ")
+# for item in items:
+#     print(item)
+print(items)
+
+loggined_user = user_manger.login("hassan", "abc123")
+if isinstance(loggined_user, User):
+    items = loggined_user.items
+    items.add(DiscreteItem('banana', "fruit", 500, 10))
+    items.add(DiscreteItem('apple', "fruit", 80, 1))
+    items.add(ContinuousItem('milk', "dairy", 80, float(50)))
+    items.add(ContinuousItem('butter', "dairy", 200, 7.5))
+
+print("Here is user2 list: ")
+# for item in items:
+#     print(item)
+print(items)
+
+# items = Items(user)
+#
+# items.add(ContinuousItem('apple', "fruit", 100, 2.5))
+# items.add(ContinuousItem('orange', "fruit", 50, 3.5))
+# items.add(DiscreteItem('banana', "fruit", 500, 10))
+# items.add(DiscreteItem('apple', "fruit", 80, 1))
+# items.add(ContinuousItem('milk', "dairy", 80, float(50)))
+# items.add(ContinuousItem('butter', "dairy", 200, 7.5))
+
+
 
 print("Here is your list: ")
-for item in items:
-    print(item)
+# for item in items:
+#     print(item)
+print(items)
