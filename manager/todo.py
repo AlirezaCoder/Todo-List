@@ -84,7 +84,6 @@ class Item:
 
 
 class ContinuousItem(Item):
-
     @property
     def count(self):
         return self._count
@@ -148,24 +147,29 @@ class DiscreteItem(Item):
 
 
 class Items:
-    def __init__(self, parent):
-        if isinstance(parent, User):
-            self.__parent = parent
-        else:
-            raise TypeError("only User class is accepted as parent.")
+
+    def __init__(self):
         self.__items = dict()
+
+    def get_item(self, category, name):
+        category = self.__items.get(category)
+        if category:
+            return [x for x in category if x.name == name]
 
     def add(self, item):
         if item:
             if isinstance(item, ContinuousItem) or isinstance(item, DiscreteItem):
                 category = item.category
-                temp_items = set()
+                temp_items = list()
                 if self.__items.get(category):
-                    temp_items = set(self.__items.get(category))
-                temp_items.add(item)
+                    temp_items = self.__items.get(category)
+                # temp_item = self.get_item(item.category, item.name)
+                # if temp_item:
+                #     temp_item.count = temp_item.count + item.count
+                # else:
+                temp_items.append(item)
                 self.__items[category] = temp_items
-                file = File(self.__parent.username)
-                file.store(item)
+
             else:
                 raise ValueError("input must be ContinuousItem or DiscreteItem class.")
         else:
@@ -180,7 +184,7 @@ class Items:
     def __contains__(self, item):
         temp_items = self.__items.get(item.category)
         for i in temp_items:
-            if item.name == i.name and item.count == i.count:
+            if item.name == i.name:
                 return True
         return False
 
@@ -200,13 +204,14 @@ class Items:
 
 
 class User:
-    def __init__(self, username, password, first_name, last_name) -> None:
+    def __init__(self, username, password, first_name, last_name, storage_mode="MEMORY") -> None:
         self.username = username
         self.password = password
         self.first_name = first_name
         self.last_name = last_name
-        self.__items = Items(self)
+        self.__items = Items()
         self.is_login = False
+        self.__storage_manager = StorageManager(self, storage_mode)
 
     @property
     def is_login(self):
@@ -283,7 +288,15 @@ class User:
     def items(self):
         if not self.__is_login:
             raise AttributeError("user is not login. you cannot see its items")
-        return self.__items
+        return self.__storage_manager.get_items()
+
+    def set_storage(self, storage_mod):
+        self.__storage_manager = StorageManager(storage_mod, self.username)
+
+    def add_item(self, item):
+        if item:
+            if isinstance(item, ContinuousItem) or isinstance(item, DiscreteItem):
+                self.__storage_manager.store(item)
 
 
 class UsersManager:
@@ -316,19 +329,106 @@ class UsersManager:
 
 
 class File:
-    def __init__(self, file_name) -> None:
+    MODES = ["r", "w", "a+", "w+"]
+
+    def __init__(self, file_name, mode="r") -> None:
+        from pathlib import Path
         if not file_name:
             raise ValueError("enter correct filename")
-        self.__file = open(file_name, "a+")
+        if mode not in File.MODES:
+            raise ValueError("file mode is incorrect.")
+        file = Path("/path/to/file")
+        if not file.is_file():
+            self.__file = open(file_name, "a+")
+            self.__file.close()
+        self.__file = open(file_name, mode)
 
     def store(self, item):
-        # file_content = self.__file.read()
-        # if category in file_content:
-        #     self.__file.seek(file_content.index(category))
-        #     print(self.__file.readline())
-        # else:
-        #     self.__file.write("")
-        self.__file.write(item.category + ";\n" + item.name + ", " + str(item.price) + ", " + str(item.count) + "\n")
+        item_type = "DISCRETE"
+        if isinstance(item, ContinuousItem):
+            item_type = "CONTINUOUS"
+
+        self.__file.write(item.name + "," + item.category + "," + str(item.price) + ","
+                          + str(item.count) + "," + item_type + ";")
+
+    def read_items(self):
+        content = self.__file.read()
+        return content
 
     def __del__(self):
         self.__file.close()
+
+    def close_file(self):
+        self.__file.close()
+
+    def change_mode(self, mode="r"):
+        if mode not in File.MODES:
+            raise ValueError("file mode is incorrect.")
+        self.__file.mode = mode
+
+
+class Database:
+    def __init__(self):
+        import sqlalchemy
+        print("SQLALCHEMY VERSION IS: " + sqlalchemy.__version__)
+
+
+class StorageManager:
+
+    STORAGE_MODES = ["MEMORY", "FILE", "DATABASE"]
+
+    def __init__(self, parent, storage_mode="MEMORY"):
+        self.mode = storage_mode
+        if self.mode == "MEMORY":
+            self.__items = Items()
+        else:
+            if isinstance(parent, User):
+                self.__parent = parent
+
+    def store(self, item):
+        if self.__mode == "FILE":
+            storage = File(self.__parent.username, "a+")
+            storage.store(item)
+            storage.close_file()
+        elif self.__mode == "DATABASE":
+            storage = Database()
+            # TODO Implement database class
+        else:
+            self.__items.add(item)
+
+    def get_items(self):
+        if self.__mode == "FILE":
+            storage = File(self.__parent.username, "r")
+            data = storage.read_items().split(";")
+            items = Items()
+            for line in data:
+                line = line.split(",")
+                if len(line) < 4:
+                    return items
+                    # raise ValueError("the file has wrong format")
+                if line[4] == "CONTINUOUS":
+                    item = ContinuousItem(str(line[0]), str(line[1]), float(line[2]), float(line[3]))
+                    items.add(item)
+                else:
+                    item = DiscreteItem(str(line[0]), str(line[1]), float(line[2]), int(line[3]))
+                    items.add(item)
+
+            storage.close_file()
+            return items
+        elif self.__mode == "DATABASE":
+            storage = Database()
+            # TODO Implement database class
+        else:
+            return self.__items
+
+    @property
+    def mode(self):
+        return self.__mode
+
+    @mode.setter
+    def mode(self, value):
+        if value in StorageManager.STORAGE_MODES:
+            self.__mode = value
+        else:
+            raise TypeError("storage mode is invalid")
+
